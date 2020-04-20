@@ -18,7 +18,7 @@ module DoubleEntry
       relations = RelationBuilder.new(options)
       lines = relations.build
 
-      if options.between? || options.code?
+      if options.between? || options.code? || options.detail?
         # from and to or code lookups have to be done via sum
         Money.new(lines.sum(:amount), account.currency)
       else
@@ -48,12 +48,13 @@ module DoubleEntry
 
     # @api private
     class Options
-      attr_reader :account, :scope, :from, :to, :at, :codes
+      attr_reader :account, :scope, :from, :to, :at, :codes, :detail
 
       def initialize(account, args = {})
         @account = account.identifier.to_s
         @scope = account.scope_identity
         @codes = (args[:codes].to_a << args[:code]).compact
+        @detail = args[:detail]
         @from = args[:from]
         @to = args[:to]
         @at = args[:at]
@@ -71,6 +72,10 @@ module DoubleEntry
         codes.present?
       end
 
+      def detail?
+        detail.present?
+      end
+
       def scope?
         !!scope
       end
@@ -79,7 +84,7 @@ module DoubleEntry
     # @api private
     class RelationBuilder
       attr_reader :options
-      delegate :account, :scope, :scope?, :from, :to, :between?, :at, :at?, :codes, :code?, to: :options
+      delegate :account, :scope, :scope?, :from, :to, :between?, :at, :at?, :codes, :code?, :detail, :detail?, to: :options
 
       def initialize(options)
         @options = options
@@ -90,6 +95,7 @@ module DoubleEntry
         lines = lines.where('created_at <= ?', at) if at?
         lines = lines.where(created_at: from..to) if between?
         lines = lines.where(code: codes) if code?
+        lines = lines.where(detail: detail) if detail?
         lines = lines.where(scope: scope) if scope?
         lines
       end
